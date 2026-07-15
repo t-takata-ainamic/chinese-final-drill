@@ -84,6 +84,7 @@ async function copyShareLink(){let c={token:$('#token').value,gistId:$('#gistId'
 
 $('#startBtn').onclick=start;$('#answerForm').onsubmit=check;$('#answerInput').oninput=e=>{if(mode!=='hanzi-pinyin')return;let end=e.target.selectionStart,old=e.target.value,converted=toneNumbers(old);e.target.value=converted;let shift=converted.length-old.length;e.target.setSelectionRange(end+shift,end+shift)};
 $$('.grades button').forEach(b=>b.onclick=()=>grade(b.dataset.grade));$('#wordListBtn').onclick=openWords;$('#closeWordList').onclick=()=>$('#wordList').close();$('#wordSearch').oninput=renderWords;$('#wordLesson').onchange=renderWords;
+document.addEventListener('keydown',e=>{if(e.repeat||!$('#result').classList.contains('show'))return;let g={'1':'again','2':'hard','3':'good','4':'easy'}[e.key];if(!g)return;e.preventDefault();grade(g)});
 $('#settingsBtn').onclick=openSync;$('#closeSettings').onclick=()=>$('#settings').close();$('#saveSettings').onclick=()=>{$('#syncStatus').textContent='設定を保存しました';localStorage.setItem(CFG,JSON.stringify({token:$('#token').value,gistId:$('#gistId').value}))};
 for(let [id,k] of [['pushBtn','push'],['pullBtn','pull']])$('#'+id).onclick=async()=>{let s=$('#syncStatus');s.textContent='通信中…';try{s.textContent=await sync(k)}catch(e){s.textContent=`エラー: ${e.message}`}};
 $('#shareBtn').onclick=async()=>{try{$('#syncStatus').textContent=await copyShareLink()}catch(e){$('#syncStatus').textContent=`エラー: ${e.message}`}};
