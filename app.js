@@ -90,4 +90,4 @@ for(let [id,k] of [['pushBtn','push'],['pullBtn','pull']])$('#'+id).onclick=asyn
 $('#shareBtn').onclick=async()=>{try{$('#syncStatus').textContent=await copyShareLink()}catch(e){$('#syncStatus').textContent=`エラー: ${e.message}`}};
 $('#exportBtn').onclick=()=>{let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));a.download=`chinese-progress-${day()}.json`;a.click();URL.revokeObjectURL(a.href)};
 $('#importInput').onchange=async e=>{try{let j=JSON.parse(await e.target.files[0].text());if(!j.cards)throw Error('形式が違います');state=migrate(j);save();$('#syncStatus').textContent='読み込みました'}catch(x){$('#syncStatus').textContent=`エラー: ${x.message}`}};
-chips();stats();let shared=importShareLink(),cfg=JSON.parse(localStorage.getItem(CFG)||'{}');if(cfg.token&&cfg.gistId)sync('pull').then(()=>{if(shared)alert('共有設定と学習履歴を読み込みました')}).catch(()=>{});
+chips();stats();let shared=importShareLink(),cfg=JSON.parse(localStorage.getItem(CFG)||'{}');if(shared)$('#mode').value='mixed';if(cfg.token&&cfg.gistId)sync('pull').then(()=>{if(shared)alert('最新版へ更新し、共有設定と学習履歴を読み込みました')}).catch(()=>{});
