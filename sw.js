@@ -1,5 +1,5 @@
-const CACHE='cn-final-v9';
-const FILES=['./','./index.html','./styles.css','./styles-extra.css','./styles-plan.css','./data.js','./app.js','./manifest.webmanifest'];
+const CACHE='cn-final-v10';
+const FILES=['./','./index.html','./styles.css','./styles-extra.css','./styles-plan.css','./styles-audio.css','./data.js','./app.js','./manifest.webmanifest'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{
