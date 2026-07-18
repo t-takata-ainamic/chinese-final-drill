@@ -20,7 +20,7 @@ function load(){
     return migrated;
   }catch{return fresh()}
 }
-function save(){state.updatedAt=new Date().toISOString();localStorage.setItem(KEY,JSON.stringify(state));stats()}
+function save(){state.updatedAt=new Date().toISOString();localStorage.setItem(KEY,JSON.stringify(state));stats();if($('#dashboard')?.open)renderDashboard()}
 function key(v,m){return `${v.id}:${m}`}
 function progress(v,m){return state.cards[key(v,m)]}
 function norm(x){return String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\s·・,，。.!！?？/／()（）〜～-]/g,'')}
@@ -70,6 +70,18 @@ function setLevel(v,m,value){
   if(value==='mastered')state.cards[k]={state:'review',stability:3,difficulty:3,successes:4,successDays:[new Date(now-86400000).toISOString().slice(0,10),day()],reps:4,lapses:0,history:[],last:now,due:new Date(Math.min(now+2*86400000,new Date(state.plan.target).getTime())).toISOString()};
   save();autoPush();renderWords();
 }
+function distribution(items){let out={new:0,hard:0,learning:0,mastered:0};for(let a of items)out[level(a.v,a.m)]++;return out}
+function stackedBar(d,total){return `<div class="bar"><i class="seg-new" style="width:${d.new/total*100}%"></i><i class="seg-hard" style="width:${d.hard/total*100}%"></i><i class="seg-learning" style="width:${d.learning/total*100}%"></i><i class="seg-mastered" style="width:${d.mastered/total*100}%"></i></div>`}
+function renderDashboard(){
+  let all=VOCAB.flatMap(v=>MODES.map(m=>({v,m,x:progress(v,m)}))),d=distribution(all),total=all.length,mastery=Math.round(d.mastered/total*100),dueN=all.filter(a=>a.x&&due(a.v,a.m)).length,todayReviews=all.flatMap(a=>a.x?.history||[]).filter(h=>h.at?.slice(0,10)===day()).length,daysLeft=Math.max(1,state.plan.days-planDay()+1),perDay=Math.ceil((total-d.mastered)/daysLeft),target=Math.round(total*planDay()/state.plan.days),paceDelta=d.mastered-target;
+  $('#dashFreshness').textContent=`学習履歴からリアルタイム集計・最終更新 ${new Date(state.updatedAt).toLocaleString('ja-JP')}`;
+  $('#dashHero').innerHTML=`<div class="dash-kpi primary-kpi"><div class="donut" style="background:conic-gradient(#3d8061 ${mastery}%,#e5ded3 0)"><b>${mastery}%</b></div><div><strong>${d.mastered}</strong><span>定着技能 / ${total}</span></div></div><div class="dash-kpi"><strong>${dueN}</strong><span>今すぐ復習</span></div><div class="dash-kpi"><strong>${d.hard}</strong><span>苦手技能</span></div><div class="dash-kpi"><strong>${todayReviews}</strong><span>今日の回答数</span></div><div class="dash-kpi"><strong>${perDay}</strong><span>残り1日あたり必要</span><small class="${paceDelta>=0?'pace-good':'pace-bad'}">計画比 ${paceDelta>=0?'+':''}${paceDelta}</small></div>`;
+  $('#dashModes').innerHTML=MODES.map(m=>{let items=VOCAB.map(v=>({v,m})),x=distribution(items);return `<div class="mode-row"><b>${modeLabel(m)}</b>${stackedBar(x,items.length)}<span>${Math.round(x.mastered/items.length*100)}%</span></div>`}).join('');
+  $('#dashLessons').innerHTML=['5','6','7','8','9','10','11'].map(lesson=>{let words=VOCAB.filter(v=>v.lesson===lesson),items=words.flatMap(v=>MODES.map(m=>({v,m}))),x=distribution(items);return `<div class="lesson-row"><b>第${lesson}課</b>${stackedBar(x,items.length)}<span>${x.mastered}/${items.length}</span></div>`}).join('');
+  let dates=[...Array(7)].map((_,i)=>{let x=new Date();x.setDate(x.getDate()-(6-i));return x.toISOString().slice(0,10)}),activity=dates.map(date=>all.flatMap(a=>a.x?.history||[]).filter(h=>h.at?.slice(0,10)===date).length),max=Math.max(1,...activity);$('#dashActivity').innerHTML=dates.map((date,i)=>`<div class="activity-day"><b>${activity[i]}</b><i style="height:${activity[i]/max*110}px"></i>${new Date(date+'T00:00:00').toLocaleDateString('ja-JP',{weekday:'short'})}</div>`).join('');
+  let weak=VOCAB.map(v=>{let risks=MODES.map(m=>{let x=progress(v,m);return{x,m,score:x&&!isMastered(x)?(x.difficulty||5)+(x.lapses||0)*2+(1-retention(x))*10:0}}),worst=risks.sort((a,b)=>b.score-a.score)[0];return{v,...worst}}).filter(a=>a.score>0).sort((a,b)=>b.score-a.score).slice(0,7);$('#dashWeak').innerHTML=weak.length?weak.map(a=>`<div class="weak-item"><div><b>${a.v.hanzi}</b>　${a.v.pinyin}<small>${a.v.ja}・${modeLabel(a.m)}</small></div><span class="risk">想起 ${Math.round(retention(a.x)*100)}%</span></div>`).join(''):'<p class="note">学習データが増えると弱点が表示されます。</p>';
+}
+function openDashboard(){renderDashboard();$('#dashboard').showModal()}
 function renderWords(){
   let q=norm($('#wordSearch').value),lesson=$('#wordLesson').value,rows=VOCAB.filter(v=>(!lesson||v.lesson===lesson)&&(!q||norm(v.hanzi+v.pinyin+v.ja).includes(q)));
   $('#wordSummary').textContent=`${rows.length}語 / 全${VOCAB.length}語　各技能は別々に管理`;
@@ -85,7 +97,7 @@ function importShareLink(){if(!location.hash.startsWith('#sync='))return false;t
 async function copyShareLink(){let c={token:$('#token').value,gistId:$('#gistId').value};if(!c.token||!c.gistId)throw Error('先に「今すぐ保存」を押してください');let x=btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');await navigator.clipboard.writeText(`${location.origin}${location.pathname}#sync=${x}`);return'共有リンクをコピーしました。別端末で開いてください'}
 
 $('#startBtn').onclick=start;$('#answerForm').onsubmit=check;$('#answerInput').oninput=e=>{if(mode!=='hanzi-pinyin')return;let end=e.target.selectionStart,old=e.target.value,converted=toneNumbers(old);e.target.value=converted;let shift=converted.length-old.length;e.target.setSelectionRange(end+shift,end+shift)};
-$$('.grades button').forEach(b=>b.onclick=()=>grade(b.dataset.grade));$('#wordListBtn').onclick=openWords;$('#closeWordList').onclick=()=>$('#wordList').close();$('#wordSearch').oninput=renderWords;$('#wordLesson').onchange=renderWords;
+$$('.grades button').forEach(b=>b.onclick=()=>grade(b.dataset.grade));$('#dashboardBtn').onclick=openDashboard;$('#closeDashboard').onclick=()=>$('#dashboard').close();$('#wordListBtn').onclick=openWords;$('#closeWordList').onclick=()=>$('#wordList').close();$('#wordSearch').oninput=renderWords;$('#wordLesson').onchange=renderWords;
 document.addEventListener('keydown',e=>{if(e.repeat||!$('#result').classList.contains('show'))return;let g={'1':'again','2':'hard','3':'good','4':'easy'}[e.key];if(!g)return;e.preventDefault();grade(g)});
 $('#settingsBtn').onclick=openSync;$('#closeSettings').onclick=()=>$('#settings').close();$('#saveSettings').onclick=()=>{$('#syncStatus').textContent='設定を保存しました';localStorage.setItem(CFG,JSON.stringify({token:$('#token').value,gistId:$('#gistId').value}))};
 for(let [id,k] of [['pushBtn','push'],['pullBtn','pull']])$('#'+id).onclick=async()=>{let s=$('#syncStatus');s.textContent='通信中…';try{s.textContent=await sync(k)}catch(e){s.textContent=`エラー: ${e.message}`}};
