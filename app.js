@@ -47,7 +47,16 @@ function next(){
   let item=queue.shift();card=item.card;mode=item.mode;$('#qMeta').textContent=`第${card.lesson}課・${modeLabel(mode)}`;$('#qProgress').textContent=`${done+1}問目`;let prompt=$('#prompt');prompt.innerHTML='';if(mode==='audio-hanzi'){prompt.innerHTML='<button class="listen-btn" id="listenBtn" aria-label="もう一度聞く">🔊<small>タップして聞く</small></button>';setTimeout(()=>speak(card.hanzi),200)}else{let text=document.createElement('div');text.textContent=mode==='ja-hanzi'?card.ja:card.hanzi;let audio=document.createElement('button');audio.className='prompt-audio';audio.type='button';audio.textContent='🔊 発音を聞く';audio.setAttribute('aria-label',`${card.hanzi}の発音を聞く`);prompt.append(text,audio)}prompt.querySelector('button').onclick=()=>speak(card.hanzi);$('#answerInput').value='';$('#answerInput').placeholder=mode==='hanzi-pinyin'?'拼音（ni3 → nǐ）':mode==='hanzi-ja'?'日本語を入力':'簡体字を入力';$('#hint').textContent=mode==='hanzi-pinyin'?'数字を打つと声調記号へ自動変換します':mode==='audio-hanzi'?'何度でも音声を再生できます':'音声は何度でも再生できます';$('#answerForm').hidden=false;$('#result').classList.remove('show');showIntervals();setTimeout(()=>$('#answerInput').focus(),50);
 }
 function modeLabel(m){return {'ja-hanzi':'日→漢字','hanzi-pinyin':'漢字→拼音','hanzi-ja':'漢字→日','audio-hanzi':'音→漢字'}[m]}
-function speak(text){if(!('speechSynthesis'in window))return alert('この端末は音声再生に対応していません');speechSynthesis.cancel();let u=new SpeechSynthesisUtterance(text),voices=speechSynthesis.getVoices();u.voice=voices.find(v=>/^zh(-|_)/i.test(v.lang))||null;u.lang='zh-CN';u.rate=.82;speechSynthesis.speak(u)}
+let chineseVoice=null;
+function selectChineseVoice(){
+  let female=/xiaoxiao|xiaoyi|xiaohan|xiaomeng|xiaomo|xiaoqiu|xiaorui|xiaoshuang|huihui|yaoyao|hanhan|ting.?ting|meijia|yu.?shu|sin.?ji|female/i,natural=/natural|neural|premium|enhanced|online|google|microsoft|apple/i;
+  let voices=speechSynthesis.getVoices().filter(v=>/^zh(-|_)/i.test(v.lang));
+  chineseVoice=voices.sort((a,b)=>score(b)-score(a))[0]||null;
+  function score(v){return(/^zh-CN$/i.test(v.lang)?40:0)+(female.test(v.name)?35:0)+(natural.test(v.name)?20:0)+(v.localService?4:0)}
+  return chineseVoice;
+}
+function speak(text){if(!('speechSynthesis'in window))return alert('この端末は音声再生に対応していません');speechSynthesis.cancel();let u=new SpeechSynthesisUtterance(text);u.voice=chineseVoice||selectChineseVoice();u.lang=u.voice?.lang||'zh-CN';u.rate=.72;u.pitch=1.06;u.volume=1;speechSynthesis.speak(u)}
+if('speechSynthesis'in window){selectChineseVoice();speechSynthesis.addEventListener?.('voiceschanged',selectChineseVoice)}
 function check(e){e.preventDefault();let input=$('#answerInput').value.trim();if(!input)return;let ok=correct(input);$('#judge').textContent=ok?'正解！':'答えを確認して自己評価してください';$('#judge').className=ok?'ok':'ng';$('#aHanzi').textContent=card.hanzi;$('#aPinyin').textContent=card.pinyin;$('#aJa').textContent=card.ja;$('#aYours').textContent=input;$('#answerForm').hidden=true;$('#result').classList.add('show')}
 function scheduled(old,g,now=Date.now()){
   let x=upgradeCard(old?structuredClone(old):{stability:.01,difficulty:5,successes:0,successDays:[],history:[],reps:0,lapses:0}),r=old?retention(x):0,s=x.stability||.01,minutes;
