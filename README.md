@@ -12,6 +12,7 @@
 - 入口: `index.html`
 - 履歴: ブラウザの `localStorage`
 - 端末間同期: Private GitHub Gist（任意）
+- 同期エラー時はGitHubの応答メッセージ、必要権限、API残量を画面に表示する。TokenとGist IDの前後空白は自動除去する。
 - GitHub Pages公開URL: `https://t-takata-ainamic.github.io/chinese-final/`
 
 ローカル確認は、このディレクトリで `python3 -m http.server 8000` を実行する。
